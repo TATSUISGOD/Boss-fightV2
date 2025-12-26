@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>タップでボスを倒せ！</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body {
+  font-family: sans-serif;
+  background: #111;
+  color: #fff;
+  text-align: center;
+  margin: 0;
+  padding: 20px;
+}
+button {
+  font-size: 18px;
+  padding: 12px 20px;
+  margin: 10px;
+}
+.boss {
+  font-size: 90px;
+}
+.hp-bar {
+  width: 80%;
+  height: 20px;
+  background: #444;
+  margin: 10px auto;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.hp {
+  height: 100%;
+  background: red;
+  width: 100%;
+}
+.hidden {
+  display: none;
+}
+</style>
+</head>
+<body>
+
+<h1>🔥 タップでボスを倒せ！ 🔥</h1>
+
+<!-- ボス選択 -->
+<div id="selectScreen">
+  <h2>ボスを選べ</h2>
+  <button onclick="startGame('スライム',100,'🟢')">スライム（HP100）</button><br>
+  <button onclick="startGame('オーク',300,'👹')">オーク（HP300）</button><br>
+  <button onclick="startGame('ドラゴン',500,'🐉')">ドラゴン（HP500）</button>
+</div>
+
+<!-- ゲーム画面 -->
+<div id="gameScreen" class="hidden">
+  <h2 id="bossName"></h2>
+  <div class="boss" id="bossIcon"></div>
+
+  <div class="hp-bar">
+    <div class="hp" id="hp"></div>
+  </div>
+  <p>HP: <span id="hpText"></span></p>
+
+  <button id="tapBtn">タップ！</button>
+</div>
+
+<!-- 結果 -->
+<div id="resultScreen" class="hidden">
+  <h2 id="resultText"></h2>
+  <div id="ranking"></div>
+  <button onclick="location.reload()">もう一度</button>
+</div>
+
+<script>
+let bossHp, maxHp, tapCount = 0, startTime;
+let bossKey = "";
+
+const hpBar = document.getElementById("hp");
+const hpText = document.getElementById("hpText");
+const bossName = document.getElementById("bossName");
+const bossIcon = document.getElementById("bossIcon");
+
+const selectScreen = document.getElementById("selectScreen");
+const gameScreen = document.getElementById("gameScreen");
+const resultScreen = document.getElementById("resultScreen");
+const resultText = document.getElementById("resultText");
+const rankingDiv = document.getElementById("ranking");
+
+// ===== 効果音 =====
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function tapSound() {
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.frequency.value = 600;
+  g.gain.value = 0.05;
+  o.connect(g);
+  g.connect(audioCtx.destination);
+  o.start();
+  o.stop(audioCtx.currentTime + 0.05);
+}
+
+function clearSound() {
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.frequency.value = 300;
+  g.gain.value = 0.1;
+  o.connect(g);
+  g.connect(audioCtx.destination);
+  o.start();
+  o.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.3);
+  o.stop(audioCtx.currentTime + 0.3);
+}
+
+// ===== ゲーム開始 =====
+function startGame(name, hp, icon) {
+  audioCtx.resume();
+
+  bossName.textContent = name;
+  bossIcon.textContent = icon;
+  bossHp = hp;
+  maxHp = hp;
+  bossKey = name;
+
+  hpText.textContent = bossHp;
+  hpBar.style.width = "100%";
+
+  selectScreen.classList.add("hidden");
+  gameScreen.classList.remove("hidden");
+
+  startTime = Date.now();
+}
+
+// ===== タップ処理 =====
+document.getElementById("tapBtn").addEventListener("click", () => {
+  tapSound();
+  tapCount++;
+
+  let damage = (tapCount % 10 === 0) ? 2 : 1;
+  bossHp -= damage;
+  if (bossHp < 0) bossHp = 0;
+
+  hpText.textContent = bossHp;
+  hpBar.style.width = (bossHp / maxHp * 100) + "%";
+
+  if (bossHp === 0) {
+    clearSound();
+    finishGame();
+  }
+});
+
+// ===== 終了処理 =====
+function finishGame() {
+  const time = ((Date.now() - startTime) / 1000).toFixed(2);
+  saveRanking(bossKey, time);
+
+  gameScreen.classList.add("hidden");
+  resultScreen.classList.remove("hidden");
+
+  resultText.textContent = `${bossKey} 撃破！ タイム：${time} 秒`;
+  showRanking(bossKey);
+}
+
+// ===== ランキング =====
+function saveRanking(key, time) {
+  const data = JSON.parse(localStorage.getItem(key) || "[]");
+  data.push(Number(time));
+  data.sort((a,b) => a - b);
+  localStorage.setItem(key, JSON.stringify(data.slice(0,5)));
+}
+
+function showRanking(key) {
+  const data = JSON.parse(localStorage.getItem(key) || "[]");
+  let html = "<h3>🏆 ランキング</h3><ol>";
+  data.forEach(t => html += `<li>${t} 秒</li>`);
+  html += "</ol>";
+  rankingDiv.innerHTML = html;
+}
+</script>
+
+</body>
+</html>
